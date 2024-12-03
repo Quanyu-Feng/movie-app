@@ -1,13 +1,12 @@
 "use strict";
 
-import { imageBaseURL } from "./api.js";
-
 /*-------
 Movie Card
 --------*/
 
 export function createMovieCard(movie) {
   const { title, release_date, poster_path, vote_average, id } = movie;
+  const imageBaseURL = "https://image.tmdb.org/t/p/";
 
   const card = document.createElement("div");
   card.classList.add("movie-card");

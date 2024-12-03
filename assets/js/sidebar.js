@@ -1,113 +1,100 @@
 "use strict";
 
-import { api_key, fetchDataFromServer } from "./api.js";
+// Function to fetch genres from an Excel file
+async function fetchGenresFromExcel() {
+  try {
+    const response = await fetch('assets/data/genres.xlsx');
+    const arrayBuffer = await response.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(sheet);
+
+    const genreList = {};
+    data.forEach(({ ID, Name }) => {
+      genreList[ID] = Name;
+    });
+
+    return genreList;
+  } catch (error) {
+    console.error('Error fetching genres:', error);
+    return {};
+  }
+}
 
 export function sidebar() {
-  /*------
-  Fetch all genres eg: [{ "id": "123", "name": "Action" }]
-  then change genre formate eg: { 123: "Action" }
-  -------*/
-  const genreList = {};
-
-  fetchDataFromServer(
-    `https://api.themoviedb.org/3/genre/movie/list?api_key=${api_key}`,
-    function ({ genres }) {
-      for (const { id, name } of genres) {
-        genreList[id] = name;
-      }
-
-      genreLink();
+  fetchGenresFromExcel().then(genreList => {
+    if (Object.keys(genreList).length === 0) {
+      console.error('No genres found');
+      return;
     }
-  );
+    createGenreLinks(genreList);
+  });
 
   const sidebarInner = document.createElement("div");
   sidebarInner.classList.add("sidebar-inner");
 
   sidebarInner.innerHTML = `
     <div class="sidebar-list">
-      <p class="title">Genre</p>
+      <p class="title">类别</p>
     </div>
-
-    <div class="sidebar-list">
-      <p class="title">Language</p>
-
-      <a
-        href="./movie-list.html"
-        menu-close
-        class="sidebar-link"
-        onClick='getMovieList("with_original_language=en", "English")'
-        >English</a
-      >
-      <a
-        href="./movie-list.html"
-        menu-close
-        class="sidebar-link"
-        onClick='getMovieList("with_original_language=hi", "Hindi")'
-        >Hindi</a
-      >
-      <a
-        href="./movie-list.html"
-        menu-close
-        class="sidebar-link"
-        onClick='getMovieList("with_original_language=bn", "Bengali")'
-        >Bengali</a
-      >
-    </div>
-
     <div class="sidebar-footer">
       <p class="copyright">
-        Copyright 2023
-        <a href="https://github.com/rajeevkrS" class="link"
-          >Rajeev Kumar Sudhansu</a
-        >
+        Copyright 2024
+        <a>HanLinHK</a>
       </p>
-
-      <img
-        src="./assets/images/tmdb-logo.svg"
-        width="130"
-        height="17"
-        alt="the movie database logo"
-      />
+      <img src="./assets/images/ielts-logo.png" width="130" height="17" alt="the movie database logo" />
     </div>
   `;
 
-  const genreLink = function () {
-    for (const [genreId, genreName] of Object.entries(genreList)) {
+  function createGenreLinks(genreList) {
+    const sidebarList = sidebarInner.querySelector(".sidebar-list");
+    const activeGenreId = window.localStorage.getItem("activeGenreId");
+
+    Object.entries(genreList).forEach(([genreId, genreName]) => {
       const link = document.createElement("a");
       link.classList.add("sidebar-link");
-      link.setAttribute("href", "./movie-list.html");
+      link.href = "./movie-list.html";
       link.setAttribute("menu-close", "");
-      link.setAttribute(
-        "onClick",
-        `getMovieList("with_genres=${genreId}", "${genreName}")`
-      );
+      link.onclick = () => {
+        window.localStorage.setItem("activeGenreId", genreId);
+        getMovieList(`with_genres=${genreId}`, genreName);
+      };
       link.textContent = genreName;
 
-      sidebarInner.querySelectorAll(".sidebar-list")[0].appendChild(link);
-    }
+      if (genreId === activeGenreId) {
+        link.classList.add("active");
+      }
 
-    const sidebar = document.querySelector("[sidebar]");
-    sidebar.appendChild(sidebarInner);
-    toggleSidebar(sidebar);
-  };
+      link.addEventListener("click", function() {
+        document.querySelectorAll(".sidebar-link").forEach(link => link.classList.remove("active"));
+        this.classList.add("active");
+      });
 
-  //   Toggle sidebar in mobile screen
-  const toggleSidebar = function (sidebar) {
+      sidebarList.appendChild(link);
+    });
+
+    const sidebarElement = document.querySelector("[sidebar]");
+    sidebarElement.appendChild(sidebarInner);
+    toggleSidebar(sidebarElement);
+  }
+
+  function toggleSidebar(sidebarElement) {
     const sidebarBtn = document.querySelector("[menu-btn]");
     const sidebarTogglers = document.querySelectorAll("[menu-toggler]");
     const sidebarClose = document.querySelectorAll("[menu-close]");
     const overlay = document.querySelector("[overlay]");
 
-    addEventOnElements(sidebarTogglers, "click", function () {
-      sidebar.classList.toggle("active");
+    const toggleActiveClass = () => {
+      sidebarElement.classList.toggle("active");
       sidebarBtn.classList.toggle("active");
       overlay.classList.toggle("active");
-    });
+    };
 
-    addEventOnElements(sidebarClose, "click", function () {
-      sidebar.classList.remove("active");
+    sidebarTogglers.forEach(toggler => toggler.addEventListener("click", toggleActiveClass));
+    sidebarClose.forEach(close => close.addEventListener("click", () => {
+      sidebarElement.classList.remove("active");
       sidebarBtn.classList.remove("active");
       overlay.classList.remove("active");
-    });
-  };
+    }));
+  }
 }
